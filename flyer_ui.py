@@ -259,6 +259,7 @@ def main():
     print('url', url)
     # 1. 初始化 CEF（完整版Chrome内核）
     win = webview.create_window(title="AI工具", url=url)
+    webview.settings['ALLOW_DOWNLOADS'] = True
     webview.start(menu=MENU_LIST)
     stop_fastapi()
 
