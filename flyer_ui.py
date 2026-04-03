@@ -1,6 +1,8 @@
 import os
 import sys
 import threading
+from datetime import datetime
+
 import webview
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -168,28 +170,38 @@ def volume_list():
     for f in files:
         result.append({
             'name': f.name,
-            "time": f.stat().st_mtime,
+            "time": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
             'url': '/volume/' + f.name
         })
     return {"data": result, "code": 0, "success": True}
 
+if os.path.isdir("F:/wenge/有价值的学习/2026学习计划/英语/"):
+    app.mount(
+        "/tmp",
+        StaticFiles(directory="F:/wenge/有价值的学习/2026学习计划/英语/", html=False),
+        # html=True 很关键！
+        name="tmp"
+    )
 
-app.mount(
-    "/hls",
-    StaticFiles(directory="F:/study/m3u8", html=False),  # html=True 很关键！
-    name="hls"
-)
+if os.path.isdir("F:/study/m3u8"):
+    app.mount(
+        "/hls",
+        StaticFiles(directory="F:/study/m3u8", html=False),  # html=True 很关键！
+        name="hls"
+    )
 
-app.mount(
-    "/volume",
-    StaticFiles(directory="D:/volumes", html=False),  # html=True 很关键！
-    name="volume"
-)
-app.mount(
-    "/",
-    StaticFiles(directory="web", html=True),  # html=True 很关键！
-    name="web"
-)
+if os.path.isdir("D:/volumes"):
+    app.mount(
+        "/volume",
+        StaticFiles(directory="D:/volumes", html=False),  # html=True 很关键！
+        name="volume"
+    )
+if os.path.isdir("D:/volumes"):
+    app.mount(
+        "/",
+        StaticFiles(directory="D:/project/flyer-ui/deploy", html=True),  # html=True 很关键！
+        name="web"
+    )
 
 
 # ===================== 启动 UVICORN =====================
