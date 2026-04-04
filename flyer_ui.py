@@ -11,12 +11,14 @@ from ollama import Client
 import edge_tts
 from pathlib import Path
 
-from webview import Menu
 from webview.menu import MenuAction
+from dotenv import load_dotenv
+
+load_dotenv()
 
 uvicorn_server = None
-PORT = 9999
-SERVER = 'localhost'
+PORT = int(os.getenv("PORT"))
+SERVER = os.getenv("SERVER")
 
 if len(sys.argv) > 1:
     PORT = sys.argv[1]
@@ -33,7 +35,7 @@ app = FastAPI(title="Flyer UI 本地网页服务")
 # 核心：托管 web 目录下的所有前端静态文件
 # 访问 http://127.0.0.1:9000/ → 自动找 web/index.html
 # ==============================================
-storage_path = "F:\\study\\m3u8"
+storage_path = os.getenv("M3U8_PATH")
 
 
 def filter_gender(gender: str):
@@ -119,7 +121,7 @@ class Item(BaseModel):
 def cloud_ai(item: Item):
     client = Client(
         host="https://ollama.com",
-        headers={'Authorization': 'Bearer 95315917af9c4197a81b189f77b3b2cc.Ph0sTihPCcZjMQRgr0tdsHPP'}
+        headers={'Authorization': 'Bearer ' + os.getenv("OLLAMA_KEY")}
     )
 
     messages = [
@@ -175,31 +177,29 @@ def volume_list():
         })
     return {"data": result, "code": 0, "success": True}
 
-if os.path.isdir("F:/wenge/有价值的学习/2026学习计划/英语/"):
-    app.mount(
-        "/tmp",
-        StaticFiles(directory="F:/wenge/有价值的学习/2026学习计划/英语/", html=False),
-        # html=True 很关键！
-        name="tmp"
-    )
-
-if os.path.isdir("F:/study/m3u8"):
+m3u8 = os.getenv("M3U8_PATH")
+if Path(m3u8).exists():
     app.mount(
         "/hls",
-        StaticFiles(directory="F:/study/m3u8", html=False),  # html=True 很关键！
+        StaticFiles(directory=m3u8, html=False),  # html=True 很关键！
         name="hls"
     )
 
-if os.path.isdir("D:/volumes"):
-    app.mount(
-        "/volume",
-        StaticFiles(directory="D:/volumes", html=False),  # html=True 很关键！
-        name="volume"
-    )
-if os.path.isdir("D:/volumes"):
+volume_path = os.getenv("VOLUME_PATH")
+if not Path(volume_path).exists():
+    print("不存在" + volume_path, "要准备自动创建")
+    Path(volume_path).mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/volume",
+    StaticFiles(directory=volume_path, html=False),  # html=True 很关键！
+    name="volume"
+)
+
+web_deploy = os.getenv("WEB_DEPLOY")
+if Path(web_deploy).exists():
     app.mount(
         "/",
-        StaticFiles(directory="D:/project/flyer-ui/deploy", html=True),  # html=True 很关键！
+        StaticFiles(directory=web_deploy, html=True),  # html=True 很关键！
         name="web"
     )
 
@@ -255,7 +255,7 @@ def go_volume():
 
 
 MENU_LIST = [
-    Menu('工具', items=[
+    webview.Menu('工具', items=[
         MenuAction("AI绘图-阿里云百炼", go_draw),
         MenuAction("AI绘图-ollama云模型", go_draw2),
         MenuAction("视频播放器", go_player),
