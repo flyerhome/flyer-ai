@@ -3,11 +3,9 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from dotenv import load_dotenv
 from .ai import Item, request_cloud_ai, gen_volume, VolumeSubmitItem, cloud_ai_models, read_edge_tts_volume, \
     gen_volume_list, base_volume_path
 
-load_dotenv()
 
 fastApi = FastAPI(title="Flyer-API")
 

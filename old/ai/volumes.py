@@ -1,11 +1,10 @@
 from pydantic import BaseModel
 import edge_tts
 import os
-from dotenv import load_dotenv
 from datetime import datetime
 from pathlib import Path
 
-load_dotenv()
+
 volume_path = os.getenv("VOLUME_PATH")
 class VolumeSubmitItem(BaseModel):
     content: str
@@ -15,7 +14,7 @@ class VolumeSubmitItem(BaseModel):
 async def gen_volume(item: VolumeSubmitItem):
     print('gen_volume', item)
     communicate = edge_tts.Communicate(item.content, item.tone)
-    p = os.path.join(volume_path, item.output + '.wav')
+    p = os.path.join(volume_path + "/tts/", item.output + '.wav')
     print(f"语音将生成：{p}")
     await communicate.save(p)
     print(f"语音已生成：{p}")
@@ -49,14 +48,14 @@ def read_edge_tts_volume():
 
 def gen_volume_list():
     result = []
-    folder = Path(volume_path)
+    folder = Path(volume_path + "/edge")
     files = [f for f in folder.iterdir() if f.is_file()]
     files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
     for f in files:
         result.append({
             'name': f.name,
             "time": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-            'url': '/volume/' + f.name
+            'url': '/volume/edge/' + f.name
         })
     return result
 

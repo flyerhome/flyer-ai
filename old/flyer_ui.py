@@ -48,7 +48,7 @@ def filter_gender(gender: str):
 
 def read_edge_tts_volume():
     result = []
-    with open("edge_tts_volume.txt", "r", encoding="utf-8") as f:
+    with open("../server/volume/edge_tts_volume.txt", "r", encoding="utf-8") as f:
         # 一行一行读
         for line in f:
             # strip() 去掉换行符和空格

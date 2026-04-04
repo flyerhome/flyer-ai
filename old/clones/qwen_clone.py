@@ -11,7 +11,7 @@ model = Qwen3TTSModel.from_pretrained(
     dtype=torch.bfloat16
 )
 print("成功加载模型")
-ref_audio = "./myvoice01.wav"
+ref_audio = "./wenge.wav"
 ref_text  = "你好呀，我准备学英语，这是我2026年的学习计划"
 
 print("准备 generate_voice_clone ")

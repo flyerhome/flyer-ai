@@ -1,8 +1,6 @@
 from pydantic import BaseModel
 from ollama import Client
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
 class Item(BaseModel):
     content: str
