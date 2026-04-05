@@ -3,8 +3,9 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from fastapi import FastAPI
-from server.player.video import video_router,player_static
+from server.player.video import video_router,player_static, player_edit_static
 from server.volume.edge import edge_router,edge_static
+from server.volume.qwen import qwen_router,qwen_static
 from server.draw.draw_ollama_cloud_ai import draw_ollama_cloud_ai_router
 from server.web.web import web_static
 
@@ -20,8 +21,11 @@ def load_app():
     app.include_router(video_router)
     app.include_router(draw_ollama_cloud_ai_router)
     app.include_router(edge_router)
+    app.include_router(qwen_router)
     player_static(app)
+    player_edit_static(app)
     edge_static(app)
+    qwen_static(app)
     web_static(app)
 
 
