@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, FastAPI
@@ -10,11 +11,6 @@ from starlette.staticfiles import StaticFiles
 
 edge_router = APIRouter()
 VOLUME_PATH = os.getenv("VOLUME_PATH")
-
-class VolumeSubmitItem(BaseModel):
-    content: str
-    tone: str
-    output: str
 
 def filter_gender(gender: str):
     if gender == 'Male':
@@ -45,10 +41,27 @@ def read_edge_tts_volume():
 def tone_list():
     return read_edge_tts_volume()
 
+
+class VolumeSubmitItem(BaseModel):
+    content: str = ''
+    tone: str = ''
+    output: str = ''
+    rate: int = 0
+    pitch: int = 0
+    volume: int = 0
+
+def trans_rate_pitch(val: int):
+    if val >= 0:
+        return '+' + str(val)
+    return str(val)
+
 @edge_router.post("/volume/submit")
 async def submit(item: VolumeSubmitItem):
     print('submit', item)
-    communicate = edge_tts.Communicate(item.content, item.tone)
+    if not item.output:
+        timestamp = str(time.time())
+        item.output = item.tone + timestamp
+    communicate = edge_tts.Communicate(text=item.content, voice=item.tone, volume=trans_rate_pitch(item.volume) + '%', rate=trans_rate_pitch(item.rate) + "%",pitch=trans_rate_pitch(item.pitch) + "Hz")
     p = os.path.join(VOLUME_PATH + "/edge", item.output + '.wav')
     print(f"语音将生成：{p}")
     await communicate.save(p)

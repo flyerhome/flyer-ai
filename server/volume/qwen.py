@@ -13,7 +13,8 @@ import time
 
 from starlette.staticfiles import StaticFiles
 
-MODEL_NAME = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+MODEL_NAME = "./Qwen3-TTS-12Hz-1.7B-Base"
+# MODEL_NAME = "./Qwen3-TTS-12Hz-1.7B-VoiceDesign"
 MODEL = None
 VOLUME_PATH = os.getenv("VOLUME_PATH")
 
@@ -22,15 +23,18 @@ QWEN_CLONE_SRC_PATH = os.getenv("QWEN_CLONE_SRC_PATH")
 
 class QwenCloneVoiceItem(BaseModel):
     text: str
-    language: str = 'Chinese'
+    language: str = 'chinese'
     clone_source: str = 'wenge'
-    save_name: str | None
+    save_name: str = ''
 
 def clone_src():
     return [
         {"name": "文哥", "en_name":"wenge", "file": QWEN_CLONE_SRC_PATH + "/wenge.wav", "text":"你好，我是文哥，这是我的声音"},
         {"name": "吕布", "en_name":"lv_bu", "file": QWEN_CLONE_SRC_PATH + "/lvbu.aac", "text":"我堂堂大丈夫，安肯为汝之义子"},
         {"name": "曹操", "en_name":"caocao", "file": QWEN_CLONE_SRC_PATH + "/caocao.aac", "text":"司徒大人所虑不能说不对，然而也未必全对"},
+        {"name": "阿朱", "en_name":"azhu", "file": QWEN_CLONE_SRC_PATH + "/azhu.wav", "text":"今日的段王爷，他胸怀广阔，对下属又重情重义，看来当年，也是因为无心之失，以致铸成大错！"},
+        {"name": "阿朱-向往关外", "en_name":"azhu2", "file": QWEN_CLONE_SRC_PATH + "/azhu2.wav", "text":"不如我们到雁门关外牧马放羊，别再理中原武林的恩恩怨怨了！"},
+        {"name": "乔峰", "en_name":"qiaofeng", "file": QWEN_CLONE_SRC_PATH + "/qiaofeng.wav", "text":"更何况，他为了掩饰当年所做的错事，连杀我义父义母和我启蒙恩施玄苦大师！"},
     ]
 
 def clone_voice(item:QwenCloneVoiceItem):
