@@ -7,15 +7,35 @@ from server.player.video import video_router,player_static, player_edit_static
 from server.volume.edge import edge_router,edge_static
 from server.volume.qwen import qwen_router,qwen_static
 from server.draw.draw_ollama_cloud_ai import draw_ollama_cloud_ai_router
-from server.web.web import web_static
+from server.web.web import web_static,tmp_static
 
 
 uvicorn_server = None
 SERVER = os.getenv("SERVER")
 PORT = int(os.getenv("PORT"))
+MAX_REQUESTS = int(os.getenv("MAX_REQUESTS"))
+from starlette import status
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import Response
+from starlette.types import ASGIApp
+
+
+class LimitUploadSize(BaseHTTPMiddleware):
+    def __init__(self, app: ASGIApp, max_upload_size: int) -> None:
+        super().__init__(app)
+        self.max_upload_size = max_upload_size
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.method == 'POST':
+            if 'content-length' not in request.headers:
+                return Response(status_code=status.HTTP_411_LENGTH_REQUIRED)
+            content_length = int(request.headers['content-length'])
+            if content_length > self.max_upload_size:
+                return Response(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+        return await call_next(request)
 
 app = FastAPI(title="Flyer-API")
-
 
 def load_app():
     app.include_router(video_router)
@@ -26,6 +46,7 @@ def load_app():
     player_edit_static(app)
     edge_static(app)
     qwen_static(app)
+    tmp_static(app)
     web_static(app)
 
 
