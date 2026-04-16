@@ -19,7 +19,7 @@ def web_static(app:FastAPI):
 def tmp_static(app:FastAPI):
     app.mount(
         "/tmp",
-        StaticFiles(directory=r"H:\wenge\有价值的学习\2026学习计划\英语", html=False),  # html=True 很关键！
+        StaticFiles(directory=r"F:\wenge\有价值的学习\2026学习计划\英语", html=False),  # html=True 很关键！
         name="web"
     )
     app.mount(

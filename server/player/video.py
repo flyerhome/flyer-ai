@@ -105,10 +105,11 @@ class MergeItem(BaseModel):
 
 @video_router.post("/player/record/merge")
 def player_merge(
-        record: UploadFile = File(..., max_length= 100 * 1024 * 1024),
+        record: UploadFile = File(...),
         video_path: Optional[str] = Form(None),
-        video_start: Optional[str] = Form(None),
-        video_end: Optional[str] = Form(None)
+        video_start: Optional[float] = Form(None),
+        video_end: Optional[float] = Form(None),
+        video_speed: Optional[float] = Form(1.0)
                  ):
 
     os.makedirs(RECORD_PATH, exist_ok=True)
@@ -118,7 +119,12 @@ def player_merge(
     video_save_tmp = os.path.join(RECORD_PATH, "video_cut_" + record.filename.replace(".webm", ".mp4"))
     server = os.getenv("SERVER") if os.getenv("SERVER") != '0.0.0.0' else '127.0.0.1'
     http_video_path = "http://" + server + ":" + os.getenv("PORT") + video_path
-    ffmpeg_ss_to(http_video_path, video_start,video_end, video_save_tmp)
+    ffmpeg_ss_to(http_video_path, video_start,video_end, video_save_tmp, 0)
+    if video_speed != 1.0:
+        video_save_speed_tmp = os.path.join(RECORD_PATH, "video_speed_" + record.filename.replace(".webm", ".mp4"))
+        ffmpeg_ss_to_speed(video_save_tmp, video_save_speed_tmp, video_speed)
+        video_save_tmp = video_save_speed_tmp
+
     save_path = os.path.join(RECORD_PATH, "merger_" + record.filename.replace(".webm", ".mp4"))
     ffmpeg_merge(video_save_tmp, file_path, save_path, stack="vstack")
     pass
@@ -131,6 +137,15 @@ def player_edit_static(app:FastAPI):
         "/video",
         StaticFiles(directory=VIDEO_PATH, html=False),  # html=True 很关键！
         name="video"
+    )
+
+def player_record_static(app:FastAPI):
+    if not Path(RECORD_PATH).exists():
+        Path(RECORD_PATH).mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/record",
+        StaticFiles(directory=RECORD_PATH, html=False),  # html=True 很关键！
+        name="record"
     )
 
 @video_router.get("/player/edit/list")
@@ -147,6 +162,21 @@ def player_edit_list(vid:str):
         })
     return {"data": result, "code": 0, "success": True}
 
+@video_router.get("/player/record/list")
+def player_record_list():
+    result = []
+    folder = Path(RECORD_PATH)
+    files = [f for f in folder.iterdir() if f.is_file()]
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    for f in files:
+        result.append({
+            'name': f.name,
+            "time": datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+            'url': '/record/' + f.name
+        })
+    return {"data": result, "code": 0, "success": True}
+
+
 @video_router.get("/player2/edit/list")
 def player_edit_list():
     result = []
@@ -160,6 +190,23 @@ def player_edit_list():
             'url': '/video/player2/' + f.name
         })
     return {"data": result, "code": 0, "success": True}
+
+def ffmpeg_ss_to_speed(video_path, video_speed_path, speed=1.0):
+    """
+    ffmpeg -i input.mp4 -filter_complex "[0:v]setpts=PTS/SPEED[v];[0:a]atempo=SPEED[a]" -map "[v]" -map "[a]" output.mp4
+    """
+    if speed == 1.0:
+        return
+    cmd = (
+        f'ffmpeg -i "{video_path}" '
+        f'-filter_complex '
+        f'"[0:v]setpts=PTS/{speed}[v];[0:a]atempo={speed}[a]" '
+        f'-map "[v]" '
+        f'-map "[a]" '
+        f'"{video_speed_path}"'
+    )
+    subprocess.run(cmd, shell=True, check=True, capture_output=True)
+    pass
 
 def ffmpeg_ss_to(video_path, start, end, save_path, cut_audio=0):
     """
@@ -250,22 +297,6 @@ def ffmpeg_get_audio():
         f'ffmpeg -list_devices true '
         f'-f dshow '
         f'-i dummy '
-    )
-    # 执行
-    subprocess.run(cmd, shell=True, check=True, capture_output=True)
-    print("音频提取完成！")
-    pass
-
-def ffmpeg_make_record():
-    """
-        ffmpeg -f dshow -i audio="麦克风名称" output.wav
-        """
-    cmd = (
-        f'ffmpeg -i "{video_path}" '
-        f'-ss {start} -t {time_long} '
-        f'-c:v libx264 '
-        f'-c:a aac '
-        f'"{save_path}"'
     )
     # 执行
     subprocess.run(cmd, shell=True, check=True, capture_output=True)

@@ -3,27 +3,26 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from fastapi import FastAPI
-from server.player.video import video_router,player_static, player_edit_static
+from server.player.video import video_router,player_static, player_edit_static,player_record_static
 from server.volume.edge import edge_router,edge_static
 from server.volume.qwen import qwen_router,qwen_static
 from server.draw.draw_ollama_cloud_ai import draw_ollama_cloud_ai_router
 from server.web.web import web_static,tmp_static
-
-
-uvicorn_server = None
-SERVER = os.getenv("SERVER")
-PORT = int(os.getenv("PORT"))
-MAX_REQUESTS = int(os.getenv("MAX_REQUESTS"))
 from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
+uvicorn_server = None
+SERVER = os.getenv("SERVER")
+PORT = int(os.getenv("PORT"))
+MAX_REQUESTS = int(os.getenv("MAX_REQUESTS"))
+
 
 class LimitUploadSize(BaseHTTPMiddleware):
-    def __init__(self, app: ASGIApp, max_upload_size: int) -> None:
-        super().__init__(app)
+    def __init__(self, apps: ASGIApp, max_upload_size: int) -> None:
+        super().__init__(apps)
         self.max_upload_size = max_upload_size
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -36,6 +35,7 @@ class LimitUploadSize(BaseHTTPMiddleware):
         return await call_next(request)
 
 app = FastAPI(title="Flyer-API")
+app.add_middleware(LimitUploadSize, max_upload_size=MAX_REQUESTS)
 
 def load_app():
     app.include_router(video_router)
@@ -44,6 +44,7 @@ def load_app():
     app.include_router(qwen_router)
     player_static(app)
     player_edit_static(app)
+    player_record_static(app)
     edge_static(app)
     qwen_static(app)
     tmp_static(app)
