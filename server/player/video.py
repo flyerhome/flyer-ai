@@ -26,12 +26,22 @@ def player_list():
     dirs = [f for f in os.listdir(M3U8_PATH) if os.path.isdir(os.path.join(M3U8_PATH, f))]
     result = []
     for d in dirs:
-        url = "/hls/" + d + "/index.m3u8"
-        result.append({
-            'vid': d,
-            'name': d,
-            'url': url
-        })
+        if "index.m3u8" in os.listdir(os.path.join(M3U8_PATH, d)):
+            url = "/hls/" + d + "/index.m3u8"
+            result.append({
+                'vid': d,
+                'name': d,
+                'url': url
+            })
+        dir_path = os.path.join(M3U8_PATH, d)
+        mp4_files = [f for f in os.listdir(dir_path) if f.endswith('.mp4') or f.endswith('.mkv') or f.endswith('.m4v') or f.endswith('.avi') or f.endswith('.m4s')]
+        for f in mp4_files:
+            url = "/hls/" + d + "/" + f
+            result.append({
+                'vid': d + "_" + f,
+                'name': f,
+                'url': url
+            })
     return {"data": result, "code": 0, "success": True}
 
 def player_static(app:FastAPI):
@@ -45,9 +55,9 @@ def player_static(app:FastAPI):
 
 class PlayerEditItem(BaseModel):
     video_path: str = None
-    start_time: str = None
+    start_time: float = None
     time_long: int = 10
-    end_time: str = None
+    end_time: float = None
     volume: float = 0.6
     save_name: str = None
     cut_audio: int = 0
@@ -109,13 +119,16 @@ def player_merge(
         video_path: Optional[str] = Form(None),
         video_start: Optional[float] = Form(None),
         video_end: Optional[float] = Form(None),
-        video_speed: Optional[float] = Form(1.0)
+        video_speed: Optional[float] = Form(1.0),
+        video_voice: Optional[str] = Form(None),
+        record_voice: Optional[str] = Form(None)
                  ):
 
     os.makedirs(RECORD_PATH, exist_ok=True)
     file_path = os.path.join(RECORD_PATH, record.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(record.file, buffer)
+
     video_save_tmp = os.path.join(RECORD_PATH, "video_cut_" + record.filename.replace(".webm", ".mp4"))
     server = os.getenv("SERVER") if os.getenv("SERVER") != '0.0.0.0' else '127.0.0.1'
     http_video_path = "http://" + server + ":" + os.getenv("PORT") + video_path
@@ -126,7 +139,7 @@ def player_merge(
         video_save_tmp = video_save_speed_tmp
 
     save_path = os.path.join(RECORD_PATH, "merger_" + record.filename.replace(".webm", ".mp4"))
-    ffmpeg_merge(video_save_tmp, file_path, save_path, stack="vstack")
+    ffmpeg_merge(video_save_tmp, file_path, save_path, stack="vstack", video_voice=video_voice, record_voice=record_voice)
     pass
 
 
@@ -208,6 +221,31 @@ def ffmpeg_ss_to_speed(video_path, video_speed_path, speed=1.0):
     subprocess.run(cmd, shell=True, check=True, capture_output=True)
     pass
 
+def ffmpeg_to(video_path, end, save_path, cut_audio=0):
+    """
+        ffmpeg -i input.mp4 -ss 00:01:20 -to 00:01:45 -c:v libx264 -c:a aac output.mp4
+        """
+    # 先下载
+
+    cmd = (
+        f'ffmpeg -i "{video_path}" '
+        f'-t {end + 10} '
+        f'-c copy '
+        f'"{save_path}"'
+    )
+    if 1 == cut_audio:
+        cmd = (
+            f'ffmpeg -i "{video_path}" '
+            f'-t {end + 10} '
+            f'-c copy '
+            f'"{save_path}"'
+        )
+    print("准备执行ffmpeg_ss_to", cmd)
+    # 执行
+    subprocess.run(cmd, shell=True, check=True, capture_output=True)
+    print("音频提取完成！")
+
+
 def ffmpeg_ss_to(video_path, start, end, save_path, cut_audio=0):
     """
     ffmpeg -i input.mp4 -ss 00:01:20 -to 00:01:45 -c:v libx264 -c:a aac output.mp4
@@ -223,9 +261,11 @@ def ffmpeg_ss_to(video_path, start, end, save_path, cut_audio=0):
         cmd = (
             f'ffmpeg -i "{video_path}" '
             f'-ss {start} -to {end} '
-            f'-vn -acodec pcm_s16le '
+            f'-c:v libx264 '
+            f'-c:a aac '
             f'"{save_path}"'
         )
+    print("准备执行ffmpeg_ss_to", cmd)
     # 执行
     subprocess.run(cmd, shell=True, check=True, capture_output=True)
     print("音频提取完成！")
@@ -245,7 +285,8 @@ def ffmpeg_ss_t(video_path, start, time_long, save_path, cut_audio=0):
         cmd = (
             f'ffmpeg -i "{video_path}" '
             f'-ss {start} -t {time_long} '
-            f'-c copy '
+            f'-c:v libx264 '
+            f'-c:a aac '
             f'"{save_path}"'
         )
     # 执行
@@ -253,7 +294,7 @@ def ffmpeg_ss_t(video_path, start, time_long, save_path, cut_audio=0):
     print("音频提取完成！")
 
 
-def ffmpeg_merge(video_path, record_path, save_path, stack: str = 'hstack'):
+def ffmpeg_merge(video_path, record_path, save_path, stack: str = 'hstack',video_voice: str = '-12dB',record_voice: str = '+6dB'):
     """
         ffmpeg -i left.mp4 -i right.mp4 -filter_complex hstack=inputs=2 output.mp4
 
@@ -276,10 +317,22 @@ def ffmpeg_merge(video_path, record_path, save_path, stack: str = 'hstack'):
         print('执行合并命令', cmd)
         subprocess.run(cmd, shell=True, check=True, capture_output=True)
     if stack=='vstack':
+        # cmd = (
+        #     f'ffmpeg -i {video_path} -i {record_path} '
+        #     # f'-filter_complex "[0:v]scale=854:-2[v0];[1:v]scale=854:-2[v1];[v0][v1]vstack=inputs=2[v];[0:a][1:a]amix=inputs=2[a]"'
+        #     f'-filter_complex "[0:v]scale=854:-2[v0];[1:v]scale=854:-2[v1];[v0][v1]vstack=inputs=2[v];[0:a]volume=0.5[a0];[1:a]volume=2.0[a1];[a0][a1]amix=inputs=2[a]"'
+        #     f' -map "[v]" -map "[a]" -c:v libx264 -c:a aac '
+        #     f'{save_path}'
+        # )
         cmd = (
             f'ffmpeg -i {video_path} -i {record_path} '
-            # f'-filter_complex "[0:v]scale=854:-2[v0];[1:v]scale=854:-2[v1];[v0][v1]vstack=inputs=2[v];[0:a][1:a]amix=inputs=2[a]"'
-            f'-filter_complex "[0:v]scale=854:-2[v0];[1:v]scale=854:-2[v1];[v0][v1]vstack=inputs=2[v];[0:a]volume=0.5[a0];[1:a]volume=1.5[a1];[a0][a1]amix=inputs=2[a]"'
+            f'-filter_complex '
+            f'"[0:v]scale=854:-2[v0];'
+            f'[1:v]scale=854:-2[v1];'
+            f'[v0][v1]vstack=inputs=2[v];'
+            f'[0:a]volume={video_voice}[a0];'  # 第一个视频降低 6dB（约 50%）
+            f'[1:a]volume={record_voice}[a1];'  # 第二个视频提高 6dB（约 200%）
+            f'[a0][a1]amix=inputs=2:normalize=0[a]"'
             f' -map "[v]" -map "[a]" -c:v libx264 -c:a aac '
             f'{save_path}'
         )
