@@ -4,6 +4,7 @@ load_dotenv()
 import os
 from fastapi import FastAPI
 from server.player.video import video_router,player_static, player_edit_static,player_record_static
+from server.music.music_cloud_ai import music_static,musics_router
 from server.volume.edge import edge_router,edge_static
 from server.volume.qwen import qwen_router,qwen_static
 from server.draw.draw_ollama_cloud_ai import draw_ollama_cloud_ai_router
@@ -42,12 +43,14 @@ def load_app():
     app.include_router(draw_ollama_cloud_ai_router)
     app.include_router(edge_router)
     app.include_router(qwen_router)
+    app.include_router(musics_router)
     player_static(app)
     player_edit_static(app)
     player_record_static(app)
     edge_static(app)
     qwen_static(app)
     tmp_static(app)
+    music_static(app)
     web_static(app)
 
 
